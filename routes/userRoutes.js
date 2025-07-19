@@ -13,28 +13,28 @@ router.get('/', async (req, res) => {
     res.send(200).send(user);
 });
 
-router.post('/', async (req, res) => {
-    //need to attach createUser code with mongoDB here
-    try {
-        const { userName, userEmail, password } = req.body;
-        const newUser = await User.create({
-            name: userName,
-            email: userEmail,
-            password: password
-        });
-        res.status(200).send(newUser);
-    } catch {
-        //todo: make sure existing user is not created!!
-        console.log("Error occurred in creating the new user, try again");
-        res.status(500).json({ error: 'Failed to create user' });
-    }
-})
+// router.post('/', async (req, res) => {
+//     //need to attach createUser code with mongoDB here
+//     try {
+//         const { userName, userEmail, password } = req.body;
+//         const newUser = await User.create({
+//             name: userName,
+//             email: userEmail,
+//             password: password
+//         });
+//         res.status(200).send(newUser);
+//     } catch {
+//         //todo: make sure existing user is not created!!
+//         console.log("Error occurred in creating the new user, try again");
+//         res.status(500).json({ error: 'Failed to create user' });
+//     }
+// })
 
 router.put('/', async (req, res) => {
     try {
         //find the user with current userName and email then change it:
         const { currentName, currentEmail } = req.body;
-        const user = await User.find({ name: `${currentName}`, email: `${currentEmail}` });
+        const user = await User.find({ name: currentName, email: currentEmail });
         //todo: define updated name and email
         user.name = updatedName;
         user.email = updatedEmail;
