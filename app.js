@@ -1,10 +1,13 @@
 const express = require('express');
 const cors = require('cors');
 const session = require('express-session');
-const users = require('./routes/userRoutes');
-const auth = require("./routes/authRoutes");
 const MongoStore = require('connect-mongo');
 const { mongoose } = require('./database');
+
+const users = require('./routes/userRoutes');
+const auth = require("./routes/authRoutes");
+const channel = require('./routes/channelRoutes');
+const message = require('./routes/messageRoutes');
 
 const app = express();
 
@@ -46,5 +49,7 @@ app.use((req, res) => {
 
 app.use('/users', users);
 app.use('/auth', auth);
+app.use('/channel', channel)
+app.use('/message', message)
 
 module.exports = app;

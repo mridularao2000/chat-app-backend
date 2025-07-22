@@ -1,9 +1,9 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
-const router = express();
+const authRouter = express.Router();
 
-router.post('/signup', async (req, res) => {
+authRouter.post('/signup', async (req, res) => {
     const { userName, userEmail, password } = req.body;
     const user = await User.findOne({ userEmail });
     if (!user) {
@@ -11,14 +11,15 @@ router.post('/signup', async (req, res) => {
         const newUser = await User.create({
             name: userName,
             email: userEmail,
-            password: hashedPassword
+            password: hashedPassword,
+            channelIds: []
         });
         req.session.id = newUser._id;
         res.status(200).send(newUser);
     } else res.status(400).json({ message: 'User already exists, please login' });
 })
 
-router.post('/login', async (req, res) => {
+authRouter.post('/login', async (req, res) => {
     const { userName, password } = req.body;
     const user = await User.findOne({ userName });
     if (!user || !bcrypt.compare(user.password, password)) {
@@ -29,7 +30,7 @@ router.post('/login', async (req, res) => {
     res.status(200).json({ message: 'Login successful' });
 }); //note: when the token expires after 14 days of non usage, this will run
 
-router.post('/logout', (req, res) => {
+authRouter.post('/logout', (req, res) => {
     req.session.destroy(() => {
         res.clearCookie('connect.sid');
         res.status(200).json({ message: 'Logged out' });
@@ -37,9 +38,11 @@ router.post('/logout', (req, res) => {
 }); //ques: what's happening here?
 //In the above code, we call the destroy() method on the session object to remove the session data. Once the session is destroyed, the user is considered logged out.
 
-router.get('/session-data', async (req, res) => {
+authRouter.get('/session-data', async (req, res) => {
     if (req.session.id) { //note: the express-session automatically authenticates the user with it's sessionId cookie and only after verifying it sets all the session variables in the req
         const user = await User.findById(req.session.id).select('-password');
         return res.json({ user });
     }
 });
+
+module.exports = authRouter;

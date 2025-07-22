@@ -8,6 +8,7 @@ const userSchema = new mongoose.Schema({
     name: String,
     email: String,
     password: String,
+    channelIds: Array
 })
 
 module.exports = mongoose.model('Users', userSchema);
