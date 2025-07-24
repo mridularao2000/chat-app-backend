@@ -15,13 +15,13 @@ channelRouter.get('/', async (req, res) => {
     }
 });
 
-//note: creating a new channel - update a channel's members?
+//note: creating a new channel - update a channel's members? Done in a seperate api
 channelRouter.post('/', async (req, res) => {
     try {
         const { channelMembers, channelName } = req.body;
         const { id } = req.session.id;
         const user = await User.findById(id);
-        const sortedMembers = [...channelMembers].sort();
+        const sortedMembers = [...channelMembers].sort(); //note: members is userIds of people
         const existingChannel = await Channel.findOne({ members: { $all: sortedMembers, $size: sortedMembers.length } });
         if (!existingChannel) {
             const newChannel = await Channel.create({
@@ -31,6 +31,8 @@ channelRouter.post('/', async (req, res) => {
             });
             user.channelIds.push(newChannel._id);
             await user.save();
+            //todo: map through sortedMembers and add this channelId to their array -> find their User entry with userId
+            //todo: Then both users should socket.join(channelId). -> how to set this up?
             res.status(200).send({ newChannel, user });
         } else res.status(200).send({ existingChannel, user });
     } catch (err) {
@@ -51,6 +53,7 @@ channelRouter.put('/:channelId/rename', async (req, res) => {
     }
 });
 
+//todo: add members here too to socket.join();
 channelRouter.put('/:channelId/add-members', async (req, res) => {
     try {
         const { channelId } = req.params;
