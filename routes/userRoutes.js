@@ -1,26 +1,23 @@
 const express = require('express');
 const User = require('../models/User');
 const userRouter = express.Router(); //topic: express Router
-//.Router() creates an mini-application with mdw and routes, but for a particular part of your project. So chat-app is a project, and within it with it's own routes is Users
+//.Router() creates an mini-application with mdw and routes, but for a particular part of your project. So chat-app is a project, and within it with it's own routes is User
 
 //note: get user from req query -> search for user
 userRouter.get('/search', async (req, res) => {
-    const { query } = req.query;
-
-    if (!query || query.trim() === '') {
+    const { userInput } = req.query;
+    if (!userInput || userInput.trim() === '') {
         return res.status(400).json({ error: 'Search input is required.' });
     }
-    const regex = new RegExp(query, 'i');
     const users = await User.find({
         $or: [
-            { email: regex },
-            { userName: regex }
+            { email: new RegExp(userInput, 'i') },
+            { name: new RegExp(userInput, 'i') }
         ]
     })
         .limit(20)
-        .select('_id userName')
+        .select('_id name')
         .populate('channelIds', 'name');
-
     res.status(200).json({ peopleList: users });
 });
 
@@ -31,8 +28,8 @@ userRouter.put('/:userId', async (req, res) => {
         const { userId } = req.params;
         const { updatedName, updatedEmail } = req.body;
         const user = await User.findById(userId);
-        user.name = updatedName;
-        user.email = updatedEmail;
+        if(!!updatedName) user.name = updatedName;
+        if (!!updatedEmail) user.email = updatedEmail;
         await user.save();
         res.status(200).json({
             response:

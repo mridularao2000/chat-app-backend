@@ -35,8 +35,8 @@ const messageRouter = express.Router();
 messageRouter.get('/:channelId/messages', async (req, res) => {
     const { channelId } = req.params;
     try {
-        const messages = await Message.find({ channelId: channelId }).sort({ createdAt: -1 }).limit(20).populate('sender', 'name email');;
-        res.send(200).json(messages);
+        const messages = await Message.find({ channelId: channelId }).sort({ createdAt: -1 }).limit(20).populate('sender', 'name email');
+        res.status(200).json({ data: messages });
     } catch (err) {
         res.status(500).json({ message: 'Failed to load messages' });
     }
@@ -50,7 +50,7 @@ messageRouter.put('/:channelId/modify/:messageId', async (req, res) => {
         message.messageBody = modifiedMessage;
         message.edited = true;
         await message.save();
-        const channel = await Channel.findOne(channelId);
+        const channel = await Channel.findById(channelId);
         if (channel.previousMessage.messageId === messageId) {
             channel.previousMessage = message;
             await channel.save();
@@ -59,7 +59,6 @@ messageRouter.put('/:channelId/modify/:messageId', async (req, res) => {
     } catch {
         res.status(500).json({ message: 'Failed to edit message' });
     }
-
 });
 
 messageRouter.delete('/:channelId/delete/:messageId', async (req, res) => {

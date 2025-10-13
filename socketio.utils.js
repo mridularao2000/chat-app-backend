@@ -157,6 +157,31 @@ const joinRooms = (socket) => {
             }
         });
     });
+    socket.on('add-members', async (data, callback) => {
+        const { channelId, additionalMembers } = data;
+        try {
+            const channel = await Channel.findById(channelId);
+            const sortedMembers = Array.from(new Set([...channel.members, ...additionalMembers])).sort();
+            channel.members = sortedMembers;
+            await channel.save();
+            additionalMembers.forEach(async member => {
+                const user = await User.findById(member);
+                if (user) {
+                    user.channelIds.push(channelId);
+                    await user.save();
+                    io.to(channelId).emit('member-update', user.name);
+                    //QUES: why is the user personal room update necessary?
+                    //ANSWERED AT THE END OF PAGE
+                    io.to(`user: ${user._id}`).emit('user:update', {
+                        channelIds: user.channelIds
+                    })
+                    // socket.emit('current-channel', channelId); //NOTE: the users are joining the room when they are added
+                }
+            });
+        } catch (err) {
+            return callback({error: err});
+        }
+    })
 };
 
 module.exports = (io, socket, session) => {
@@ -164,3 +189,131 @@ module.exports = (io, socket, session) => {
         joinRooms(socket),
         messaging(io, socket)
 }
+
+
+// Excellent question — and yes, you're right to question whether **per-user rooms** are *really necessary* if **each user has their own socket**.
+
+// Let’s break this down clearly:
+
+// ---
+
+// ## ✅ Short Answer
+
+// If each user has **only one active socket connection** (i.e., single tab/device) **and** your server has access to that exact socket, **you can emit directly to that socket** without needing per-user rooms.
+
+// ```js
+// socket.emit('channels-updated', { channelId });
+// ```
+
+// However...
+
+// ---
+
+// ## 🧠 Here's Why Per-User Rooms *Are* Useful (and often preferred):
+
+// ### ✅ 1. **Users can have multiple sockets**
+
+// * A user may open your app in multiple tabs or devices — each with its **own socket**.
+// * If you only emit to `socket.emit(...)`, you're only reaching **one socket**.
+// * With a room like `user:123`, you can target **all their sockets at once**:
+
+// ```js
+// io.to(`user:${userId}`).emit('channels-updated', { channelId });
+// ```
+
+// So if the user has:
+
+// * One tab open on desktop
+// * Another on mobile
+// * Or refreshes and reconnects
+
+// They **all stay in sync**.
+
+// ---
+
+// ### ✅ 2. **You don’t always have access to the user’s socket**
+
+// In your `add-members` example:
+
+// ```js
+// additionalMembers.forEach(async memberId => {
+//     const user = await User.findById(memberId);
+//     // Now what? You don’t have their `socket` directly
+// });
+// ```
+
+// To emit to a user by `socket.emit(...)`, you must have the `socket` instance for that user. But unless:
+
+// * You store and manage a `userId -> socket` map manually, or
+// * You put them in a **named room** (like `user:<id>`)
+
+// You can’t reach them easily.
+
+// > With rooms, you don't need their socket instance — you can just call `io.to('user:123')`.
+
+// ---
+
+// ### ✅ 3. **Clean separation of concerns**
+
+// Using rooms:
+
+// * You separate **who to send to** (room logic)
+// * From **what to send** (event data)
+// * And you avoid storing/managing socket references manually
+
+// ---
+
+// ### ✅ 4. **More scalable**
+
+// When you scale your app across multiple processes (e.g., using Redis or Socket.IO adapter for horizontal scaling):
+
+// * Rooms let all servers know **where a user is connected**
+// * Manually tracking sockets doesn’t scale easily
+
+// ---
+
+// ## ❌ When you **don’t need** rooms
+
+// You can skip per-user rooms **if**:
+
+// * Each user only has one connection
+// * You only emit to users based on the current socket (i.e., the one emitting the event)
+// * You’re okay with updates not reaching all tabs/devices
+
+// So yes — your architecture is fine for small-scale or single-socket-per-user setups.
+
+// Example:
+
+// ```js
+// socket.on('add-members', async (data, callback) => {
+//     // current user adds others
+//     additionalMembers.forEach(async (memberId) => {
+//         const memberSocket = findSocketForUser(memberId); // if you store it somewhere
+//         if (memberSocket) {
+//             memberSocket.emit('channels-updated', { channelId });
+//         }
+//     });
+// });
+// ```
+
+// But that means you must:
+
+// * Store a map of userId to socket when users connect
+// * Keep it up to date (remove on disconnect, update on reconnect)
+
+// That can get messy over time.
+
+// ---
+
+// ## ✅ Conclusion
+
+// | Approach             | Pros                                       | Cons                                                                |
+// | -------------------- | ------------------------------------------ | ------------------------------------------------------------------- |
+// | `socket.emit(...)`   | Simple, direct                             | Only works if you have that socket, and only reaches one connection |
+// | `io.to('user:<id>')` | Works across tabs/devices, scalable, clean | Requires users to join rooms on connect                             |
+
+// > ✅ **Best practice for real-time multi-user apps** is to use per-user rooms. But for lightweight or single-connection use cases, `socket.emit(...)` can work fine.
+
+// ---
+
+// Let me know if you want to see how to **store user-socket mappings** as an alternative to rooms — or if you'd prefer to implement the **user-room join on connect**.

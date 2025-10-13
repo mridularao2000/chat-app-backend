@@ -11,5 +11,5 @@ const userSchema = new mongoose.Schema({
     channelIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Channel' }]
 })
 
-module.exports = mongoose.model('Users', userSchema);
+module.exports = mongoose.model('User', userSchema);
 
