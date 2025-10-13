@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const authRouter = express.Router();
 
-authRouter.post('/signup', async (req, res) => {
+authRouter.post('/signup', async (req, res) => { //UGLY: we probably don't need this
     const { userName, userEmail, password } = req.body;
     const user = await User.findOne({ userEmail });
     if (!user) {
@@ -14,7 +14,7 @@ authRouter.post('/signup', async (req, res) => {
             password: hashedPassword,
             channelIds: []
         });
-        req.session.id = newUser._id;
+        req.session.userId = newUser._id;
         res.status(200).send(newUser);
     } else res.status(400).json({ message: 'User already exists, please login' });
 })
@@ -39,10 +39,18 @@ authRouter.post('/logout', (req, res) => {
 //In the above code, we call the destroy() method on the session object to remove the session data. Once the session is destroyed, the user is considered logged out.
 
 authRouter.get('/session-data', async (req, res) => {
-    if (req.session.id) { //note: the express-session automatically authenticates the user with it's sessionId cookie and only after verifying it sets all the session variables in the req
-        const user = await User.findById(req.session.id).select('-password');
-        return res.json({ user });
+    if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
     }
-});
+    const user = await User.findById(req.session.userId).select('-password').populate({
+        path: 'channelIds',
+        select: 'name' // only get the channel name (and _id by default)
+      });
+    if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+    }
+    return res.json({ user });
+}); //NOTE: req.session.id refers to the session’s internal ID — it always exists if a session is loaded (even if it's empty). It doesn't guarantee that the user is authenticated — just that the session exists.
+
 
 module.exports = authRouter;

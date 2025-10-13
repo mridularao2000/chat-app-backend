@@ -7,9 +7,20 @@ const channelRouter = express.Router();
 //note: getting all chats that a user has
 channelRouter.get('/', async (req, res) => {
     try {
-        const { id } = req.session.id;
+        const { id } = req.session.userId;
         const user = await User.findById(id);
         res.status(200).send(user.channelIds);
+    } catch (err) {
+        res.status(500).json(err);
+    }
+});
+
+//TODO: create an api to find a channel 
+channelRouter.get('/:channelName', async (req, res) => {
+    try {
+        const { channelName } = req.params;
+        const channelData = await Channel.findOne(channelName);
+        res.status(200).send(channelData);
     } catch (err) {
         res.status(500).json(err);
     }
@@ -19,7 +30,7 @@ channelRouter.get('/', async (req, res) => {
 channelRouter.post('/', async (req, res) => {
     try {
         const { channelMembers, channelName } = req.body;
-        const { id } = req.session.id;
+        const { id } = req.session.userId;
         const user = await User.findById(id);
         const sortedMembers = [...channelMembers].sort(); //note: members is userIds of people
         const existingChannel = await Channel.findOne({ members: { $all: sortedMembers, $size: sortedMembers.length } });
@@ -31,8 +42,6 @@ channelRouter.post('/', async (req, res) => {
             });
             user.channelIds.push(newChannel._id);
             await user.save();
-            //todo: map through sortedMembers and add this channelId to their array -> find their User entry with userId
-            //todo: Then both users should socket.join(channelId). -> how to set this up?
             res.status(200).send({ newChannel, user });
         } else res.status(200).send({ existingChannel, user });
     } catch (err) {
@@ -53,7 +62,7 @@ channelRouter.put('/:channelId/rename', async (req, res) => {
     }
 });
 
-//todo: add members here too to socket.join();
+//todo: add members here too to socket.join(); -> DONE!!!!!
 channelRouter.put('/:channelId/add-members', async (req, res) => {
     try {
         const { channelId } = req.params;

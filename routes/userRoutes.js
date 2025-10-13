@@ -4,17 +4,26 @@ const userRouter = express.Router(); //topic: express Router
 //.Router() creates an mini-application with mdw and routes, but for a particular part of your project. So chat-app is a project, and within it with it's own routes is Users
 
 //note: get user from req query -> search for user
-userRouter.get('/', async (req, res) => {
-    const { userData } = req.body;
-    const user = await User.find({
+userRouter.get('/search', async (req, res) => {
+    const { query } = req.query;
+
+    if (!query || query.trim() === '') {
+        return res.status(400).json({ error: 'Search input is required.' });
+    }
+    const regex = new RegExp(query, 'i');
+    const users = await User.find({
         $or: [
-            { email: new RegExp(userData, 'i') },
-            { userName: new RegExp(userData, 'i') }
+            { email: regex },
+            { userName: regex }
         ]
-    }); //This finds all users whose email or userName matches the input.
-    //note: RegExp expression includes all results incomplete input can be a part of - 'jo' gives back 'John', 'jhoNNy', etc. 'i' specifically means a flag meaning case-insensitive matching (apprently) :/
-    res.status(200).send(user);
+    })
+        .limit(20)
+        .select('_id userName')
+        .populate('channelIds', 'name');
+
+    res.status(200).json({ peopleList: users });
 });
+
 
 //note: find the user with current userName and email then change it:
 userRouter.put('/:userId', async (req, res) => {
@@ -25,9 +34,12 @@ userRouter.put('/:userId', async (req, res) => {
         user.name = updatedName;
         user.email = updatedEmail;
         await user.save();
-        res.status(200).json({ response: 
-            { message: 'Updated successfully', 
-            body: user } 
+        res.status(200).json({
+            response:
+            {
+                message: 'Updated successfully',
+                body: user
+            }
         });
     } catch {
         console.log('Failed to update userData');

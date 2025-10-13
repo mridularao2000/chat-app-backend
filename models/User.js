@@ -5,10 +5,11 @@ const mongoose = require('mongoose');
 //resource_attached: https://article.arunangshudas.com/why-use-mongoose-with-mongodb-67a026f66386
 
 const userSchema = new mongoose.Schema({
-    name: String,
-    email: String,
-    password: String,
-    channelIds: Array
+    name: { type: String, required: true },
+    email: { type: String, required: true },
+    password: { type: String, required: true },
+    channelIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Channel' }]
 })
 
 module.exports = mongoose.model('Users', userSchema);
+

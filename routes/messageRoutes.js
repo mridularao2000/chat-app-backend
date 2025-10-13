@@ -31,11 +31,12 @@ const messageRouter = express.Router();
 //     }
 // });
 
+//NOTE: using this to show the messages in a selected chat
 messageRouter.get('/:channelId/messages', async (req, res) => {
-    const channelId = req.params;
+    const { channelId } = req.params;
     try {
-        const messages = await Message.find({ channelId: channelId }).sort({ createdAt: -1 }).limit(20);
-        res.send(200).send(messages);
+        const messages = await Message.find({ channelId: channelId }).sort({ createdAt: -1 }).limit(20).populate('sender', 'name email');;
+        res.send(200).json(messages);
     } catch (err) {
         res.status(500).json({ message: 'Failed to load messages' });
     }
